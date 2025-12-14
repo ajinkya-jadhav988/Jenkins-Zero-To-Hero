@@ -2,14 +2,16 @@ pipeline {
 
   agent {
     docker {
-      image 'docker:24.0.6'                         // Docker CLI included
-      args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+      image 'docker:24.0.6'
+      args "-u root -v /var/run/docker.sock:/var/run/docker.sock -v ${WORKSPACE}:${WORKSPACE}"
     }
   }
 
   environment {
-    DOCKER_USER = "jadhavajinkya988"               // Your DockerHub username
-    SONAR_URL = "http://13.233.160.201:9000/"      // Your SonarQube URL
+    DOCKER_USER = "jadhavajinkya988"
+    GIT_REPO_NAME = "Jenkins-Zero-To-Hero"
+    GIT_USER_NAME = "ajinkya-jadhav988"
+    SONAR_URL = "http://13.233.160.201:9000/"
   }
 
   stages {
@@ -17,7 +19,7 @@ pipeline {
     stage('Init Tools') {
       steps {
         sh '''
-          echo "🔧 Installing required tools (git, maven, java)..."
+          echo "Installing tools (git, maven, java)..."
           apk add --no-cache git maven openjdk17
           mvn -version
           java -version
@@ -26,8 +28,8 @@ pipeline {
     }
 
     stage('Checkout') {
-  steps {
-    git branch: 'main', url: 'https://github.com/ajinkya-jadhav988/Jenkins-Zero-To-Hero.git'
+      steps {
+        git branch: 'main', url: 'https://github.com/ajinkya-jadhav988/Jenkins-Zero-To-Hero.git'
       }
     }
 
@@ -45,59 +47,54 @@ pipeline {
         withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
           sh '''
             cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
-            mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}
+            mvn sonar:sonar -Dsonar.host.url=${SONAR_URL} -Dsonar.token=$SONAR_AUTH_TOKEN
           '''
         }
       }
     }
 
-    stage('Build and Push Docker Image') {
+    stage('Build & Push Docker Image') {
       environment {
         DOCKER_IMAGE = "${DOCKER_USER}/ultimate-cicd:${BUILD_NUMBER}"
       }
       steps {
-        withCredentials([usernamePassword(credentialsId: 'docker-cred',
-                        usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+        withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
           sh '''
-            echo "🔐 Logging into DockerHub..."
             echo "$PASS" | docker login -u "$USER" --password-stdin
 
-            echo "🐳 Building Docker image..."
             cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
             docker build -t ${DOCKER_IMAGE} .
 
-            echo "📤 Pushing Docker image..."
             docker push ${DOCKER_IMAGE}
           '''
         }
       }
     }
 
-    stage('Update Deployment File') {
-      environment {
-        GIT_REPO_NAME = "Jenkins-Zero-To-Hero"
-        GIT_USER_NAME = "ajinkya-jadhav988"
-      }
+    stage('Update Deployment File & Push') {
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-          sh '''
-            echo "🔄 Updating deployment YAML with new image tag..."
 
-            # Git config
-            git config user.email "ajinkya.dev@gmail.com"
-            git config user.name "Ajinkya Jadhav"
+          dir("${WORKSPACE}") {
+            sh '''
+              echo "Working directory: $(pwd)"
+              ls -a
 
-            # Replace image tag
-            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
+              git config user.email "ajinkya.dev@gmail.com"
+              git config user.name "Ajinkya Jadhav"
 
-            # Commit & push changes
-            git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-          '''
+              sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
+
+              git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
+              git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "Nothing to commit"
+              git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+            '''
+          }
+
         }
       }
     }
 
   }
+
 }
