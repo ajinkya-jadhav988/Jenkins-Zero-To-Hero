@@ -6,9 +6,9 @@ pipeline {
   }
 
   agent {
-    docker {
-      image 'docker:24.0.6'
-      args "-u root -v /var/run/docker.sock:/var/run/docker.sock"
+  docker {
+    image 'docker:24.0.6'
+    args "-u root -v /var/run/docker.sock:/var/run/docker.sock -v ${WORKSPACE}:${WORKSPACE}"
     }
   }
 
