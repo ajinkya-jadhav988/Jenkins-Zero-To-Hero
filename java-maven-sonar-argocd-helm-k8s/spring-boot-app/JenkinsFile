@@ -26,9 +26,8 @@ pipeline {
     }
 
     stage('Checkout') {
-      steps {
-        sh 'echo "Checkout stage passed (your repo clone is commented for now)"'
-        // git branch: 'main', url: 'https://github.com/ajinkya-jadhav988/Jenkins-Zero-To-Hero.git'
+  steps {
+    git branch: 'main', url: 'https://github.com/ajinkya-jadhav988/Jenkins-Zero-To-Hero.git'
       }
     }
 
