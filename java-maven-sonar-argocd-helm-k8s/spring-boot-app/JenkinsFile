@@ -1,8 +1,8 @@
 pipeline {
 
   options {
-      skipDefaultCheckout(true)
-      disableConcurrentBuilds()
+    skipDefaultCheckout(true)
+    disableConcurrentBuilds()
   }
 
   agent {
@@ -21,18 +21,22 @@ pipeline {
 
   stages {
 
+    stage('Fix Workspace Permissions') {
+      steps {
+        sh '''
+          echo "Fixing workspace permissions..."
+          chmod -R 777 ${WORKSPACE} || true
+        '''
+      }
+    }
+
     stage('Checkout') {
       steps {
         checkout([
           $class: 'GitSCM',
           branches: [[name: 'main']],
-          userRemoteConfigs: [[
-            url: "https://github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git"
-          ]],
-          extensions: [
-            [$class: 'CloneOption', shallow: false, depth: 0, timeout: 120],
-            [$class: 'CleanBeforeCheckout']
-          ]
+          userRemoteConfigs: [[url: "https://github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git"]],
+          extensions: [[$class: 'CleanBeforeCheckout']]
         ])
       }
     }
@@ -99,7 +103,7 @@ pipeline {
               java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
 
             git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "Nothing to commit"
+            git commit -m "Update image to version ${BUILD_NUMBER}" || echo "Nothing to commit"
 
             git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
           '''
@@ -107,6 +111,6 @@ pipeline {
       }
     }
 
-  } // END STAGES
+  } // end stages
 
-} // END PIPELINE
+} // end pipeline
