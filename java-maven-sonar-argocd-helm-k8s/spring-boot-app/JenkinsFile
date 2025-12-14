@@ -28,8 +28,15 @@ pipeline {
     }
 
     stage('Checkout') {
-      steps {
-        git branch: 'main', url: 'https://github.com/ajinkya-jadhav988/Jenkins-Zero-To-Hero.git'
+  steps {
+    checkout([
+      $class: 'GitSCM',
+      branches: [[name: '*/main']],
+      doGenerateSubmoduleConfigurations: false,
+      extensions: [
+        [$class: 'CloneOption', shallow: false, noTags: false, reference: '', timeout: 120]
+      ],
+      userRemoteConfigs: [[url: 'https://github.com/ajinkya-jadhav988/Jenkins-Zero-To-Hero.git']]
       }
     }
 
